@@ -1,0 +1,40 @@
+# Job definition for SQL REPLACE USING demo
+# This job demonstrates Databricks native dynamic partition overwrites
+# using REPLACE USING syntax (pure SQL alternative to dbt insert_overwrite)
+
+resources:
+  jobs:
+    sql_replace_using:
+      name: "insert_overwrite__databricks_dbt_sql_replace_using_${bundle.environment}"
+
+      # Job parameters
+      parameters:
+        - name: catalog
+          default: "${var.catalog}"
+        - name: schema
+          default: "${var.schema}"
+
+      # Define serverless environment for SQL notebook task
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: "${var.environment_version}"
+
+      tasks:
+        - task_key: sql_replace_using_demo
+          notebook_task:
+            notebook_path: "${workspace.file_path}/notebooks/01_sql_replace_using_demo"
+            source: WORKSPACE
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+          environment_key: serverless_env
+
+      # Timeout and retry settings
+      timeout_seconds: 1800
+      max_concurrent_runs: 1
+
+      tags:
+        project: "insert_overwrite__databricks_dbt"
+        environment: "${bundle.environment}"
+        job_type: "demo"

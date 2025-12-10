@@ -1,0 +1,84 @@
+version: 2
+
+models:
+  - name: orders_mart_partitioned
+    description: |
+      Daily aggregated orders using insert_overwrite with partitioning
+
+      **Incremental Strategy**: insert_overwrite
+      **Partition Column**: order_date
+
+      This model demonstrates:
+      - Efficient partition-level overwrites
+      - Idempotent daily processing
+      - Reprocessing specific dates without affecting others
+
+      **How it works**:
+      When running incrementally, only partitions matching the filter
+      (last 7 days) are overwritten. Historical partitions remain unchanged.
+
+    config:
+      materialized: incremental
+      incremental_strategy: insert_overwrite
+      partition_by: order_date
+
+    columns:
+      - name: order_date
+        description: "Date of orders (partition column)"
+        tests:
+          - unique
+          - not_null
+
+      - name: total_orders
+        description: "Total number of orders for the date"
+        tests:
+          - not_null
+
+      - name: unique_customers
+        description: "Number of unique customers who placed orders"
+        tests:
+          - not_null
+
+      - name: unique_products
+        description: "Number of unique products ordered"
+        tests:
+          - not_null
+
+      - name: total_quantity
+        description: "Total quantity of items ordered"
+        tests:
+          - not_null
+
+      - name: total_revenue
+        description: "Total revenue for the date"
+        tests:
+          - not_null
+
+      - name: avg_order_value
+        description: "Average order value"
+
+      - name: min_order_value
+        description: "Minimum order value"
+
+      - name: max_order_value
+        description: "Maximum order value"
+
+      - name: confirmed_orders
+        description: "Number of confirmed orders"
+
+      - name: shipped_orders
+        description: "Number of shipped orders"
+
+      - name: delivered_orders
+        description: "Number of delivered orders"
+
+      - name: cancelled_orders
+        description: "Number of cancelled orders"
+
+      - name: orders_with_issues
+        description: "Orders flagged with data quality issues"
+
+      - name: last_updated_at
+        description: "Timestamp when record was last updated"
+        tests:
+          - not_null

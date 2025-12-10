@@ -1,0 +1,109 @@
+# Consolidated dbt workflow job
+# This job orchestrates the complete dbt insert_overwrite demo workflow:
+#   1. Setup and generate data (02a)
+#   2. Initial dbt run
+#   3. Simulate late-arriving data (02b)
+#   4. dbt run to refresh affected partitions
+#   5. Verify synchronization (02c)
+
+resources:
+  jobs:
+    dbt_workflow:
+      name: "insert_overwrite__databricks_dbt_workflow_${bundle.environment}"
+
+      # Job parameters
+      parameters:
+        - name: num_orders
+          default: "20000"
+        - name: num_orders_per_date
+          default: "50"
+
+      # Define environments for different task types
+      environments:
+        - environment_key: serverless_env
+          spec:
+            client: "4"
+        - environment_key: dbt_sql_env
+          spec:
+            client: "4"
+            dependencies:
+              - "dbt-databricks>=1.11.0,<2.0.0"
+
+      tasks:
+        # Task 1: Setup and generate initial data (02a)
+        - task_key: setup_and_generate
+          notebook_task:
+            notebook_path: "${workspace.file_path}/notebooks/02a_setup_and_generate_data"
+            source: WORKSPACE
+            base_parameters:
+              catalog: "${var.catalog}"
+              schema: "${var.schema}"
+              num_orders: "{{job.parameters.num_orders}}"
+          environment_key: serverless_env
+
+        # Task 2: Initial dbt build (creates mart tables)
+        # Note: Uses --full-refresh to load all historical data on first run
+        # The lookback_hours filter would miss historical data since created_at is in the past
+        - task_key: dbt_initial_build
+          depends_on:
+            - task_key: setup_and_generate
+          environment_key: dbt_sql_env
+          dbt_task:
+            project_directory: "${workspace.file_path}/dbt_project"
+            commands:
+              - "dbt build --full-refresh"
+            warehouse_id: "${var.warehouse_id}"
+            catalog: "${var.catalog}"
+            schema: "${var.schema}"
+
+        # Task 3: Simulate late-arriving data (02b)
+        # Note: target_dates automatically calculated by notebook based on actual data range
+        - task_key: simulate_late_arrivals
+          depends_on:
+            - task_key: dbt_initial_build
+          notebook_task:
+            notebook_path: "${workspace.file_path}/notebooks/02b_simulate_late_arrivals"
+            source: WORKSPACE
+            base_parameters:
+              catalog: "${var.catalog}"
+              schema: "${var.schema}"
+              num_orders_per_date: "{{job.parameters.num_orders_per_date}}"
+          environment_key: serverless_env
+
+        # Task 4: dbt run to refresh affected partitions
+        # Using --full-refresh to bypass incremental logic and process all data
+        # This ensures clean state and avoids any metadata scanning issues
+        # insert_overwrite still only overwrites partitions that have data in the result
+        - task_key: dbt_refresh_partitions
+          depends_on:
+            - task_key: simulate_late_arrivals
+          environment_key: dbt_sql_env
+          dbt_task:
+            project_directory: "${workspace.file_path}/dbt_project"
+            commands:
+              - "dbt build --full-refresh"
+            warehouse_id: "${var.warehouse_id}"
+            catalog: "${var.catalog}"
+            schema: "${var.schema}"
+
+        # Task 5: Verify synchronization (02c)
+        # Note: Notebook auto-detects recently updated dates (no parameters needed)
+        - task_key: verify_sync
+          depends_on:
+            - task_key: dbt_refresh_partitions
+          notebook_task:
+            notebook_path: "${workspace.file_path}/notebooks/02c_verify_sync"
+            source: WORKSPACE
+            base_parameters:
+              catalog: "${var.catalog}"
+              schema: "${var.schema}"
+          environment_key: serverless_env
+
+      # Timeout and retry settings
+      timeout_seconds: 7200
+      max_concurrent_runs: 1
+
+      tags:
+        project: "insert_overwrite__databricks_dbt"
+        environment: "${bundle.environment}"
+        job_type: "workflow"

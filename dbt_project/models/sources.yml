@@ -1,0 +1,79 @@
+version: 2
+
+sources:
+  - name: raw_sales
+    description: "Raw sales data from source systems"
+    database: "{{ var('catalog') }}"
+    schema: "{{ var('schema') }}"
+    tables:
+      - name: orders_partitioned
+        description: "Raw orders table with PARTITIONED BY order_date"
+        columns:
+          - name: order_id
+            description: "Unique identifier for each order"
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: "Customer identifier"
+            tests:
+              - not_null
+          - name: order_date
+            description: "Date when order was placed (partition column)"
+            tests:
+              - not_null
+          - name: product_id
+            description: "Product identifier"
+          - name: quantity
+            description: "Quantity ordered"
+            tests:
+              - not_null
+          - name: unit_price
+            description: "Price per unit"
+            tests:
+              - not_null
+          - name: total_amount
+            description: "Total order amount"
+          - name: status
+            description: "Order status"
+            tests:
+              - accepted_values:
+                  values: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']
+          - name: created_at
+            description: "Timestamp when record was created"
+
+      - name: orders_liquid
+        description: "Raw orders table with CLUSTER BY order_date (liquid clustering)"
+        columns:
+          - name: order_id
+            description: "Unique identifier for each order"
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: "Customer identifier"
+            tests:
+              - not_null
+          - name: order_date
+            description: "Date when order was placed"
+            tests:
+              - not_null
+          - name: product_id
+            description: "Product identifier"
+          - name: quantity
+            description: "Quantity ordered"
+            tests:
+              - not_null
+          - name: unit_price
+            description: "Price per unit"
+            tests:
+              - not_null
+          - name: total_amount
+            description: "Total order amount"
+          - name: status
+            description: "Order status"
+            tests:
+              - accepted_values:
+                  values: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']
+          - name: created_at
+            description: "Timestamp when record was created"

@@ -1,0 +1,42 @@
+# dbt profiles configuration for Databricks
+# This file is used for local development
+# In production, credentials come from Databricks job parameters
+
+databricks_insert_overwrite:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      catalog: "{{ env_var('DBT_CATALOG', 'main') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'your_schema') }}"
+      host: "{{ env_var('DATABRICKS_HOST', 'https://your-workspace.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH', '/sql/1.0/warehouses/abc123def4567890') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 4
+      connect_retries: 3
+      connect_timeout: 10
+      retry_all: true
+
+    staging:
+      type: databricks
+      catalog: "{{ env_var('DBT_CATALOG', 'main') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'your_schema') }}"
+      host: "{{ env_var('DATABRICKS_HOST', 'https://your-workspace.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH', '/sql/1.0/warehouses/abc123def4567890') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 8
+      connect_retries: 3
+      connect_timeout: 10
+      retry_all: true
+
+    prod:
+      type: databricks
+      catalog: "{{ env_var('DBT_CATALOG', 'main') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'your_schema') }}"
+      host: "{{ env_var('DATABRICKS_HOST', 'https://your-workspace.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH', '/sql/1.0/warehouses/abc123def4567890') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 16
+      connect_retries: 3
+      connect_timeout: 10
+      retry_all: true

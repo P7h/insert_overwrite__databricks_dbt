@@ -1,0 +1,113 @@
+version: 2
+
+models:
+  - name: orders_mart_liquid
+    description: |
+      Daily orders aggregation using insert_overwrite with Liquid Clustering
+
+      **Incremental Strategy**: insert_overwrite
+      **Clustering**: Liquid clustered by order_date
+      **No Partitions**: Uses predicate-based overwrites instead
+
+      **Comparison with orders_mart_partitioned**:
+      - Same data, same organization (by order_date)
+      - Different storage mechanism (liquid clustering vs explicit partitions)
+      - Both support efficient date-based insert_overwrite
+
+      This model demonstrates:
+      - Liquid clustering for date-based data organization
+      - Flexible data organization without partition overhead
+      - Automatic optimization of data layout
+      - Predicate-based overwrite strategy
+
+      **How it works**:
+      - Data is automatically organized by order_date
+      - Filter predicate determines which rows to overwrite
+      - More flexible than traditional partitioning
+      - Better performance for varied query patterns
+
+      **Liquid Clustering Benefits**:
+      - No need to know query patterns upfront
+      - Automatic data optimization
+      - No partition metadata overhead
+      - Efficient for date-based filtering and overwrites
+
+    config:
+      materialized: incremental
+      incremental_strategy: insert_overwrite
+      liquid_clustered_by: order_date
+
+    columns:
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+
+      - name: order_date
+        description: "Date of orders (clustering column)"
+        tests:
+          - not_null
+
+      - name: total_orders
+        description: "Total number of orders by customer on this date"
+        tests:
+          - not_null
+
+      - name: unique_products_purchased
+        description: "Number of unique products purchased"
+
+      - name: total_quantity
+        description: "Total quantity purchased"
+
+      - name: total_spent
+        description: "Total amount spent by customer"
+        tests:
+          - not_null
+
+      - name: avg_order_value
+        description: "Average order value for customer"
+
+      - name: first_order_date
+        description: "Customer's first order date"
+        tests:
+          - not_null
+
+      - name: last_order_date
+        description: "Customer's most recent order date"
+        tests:
+          - not_null
+
+      - name: customer_tenure_days
+        description: "Days between first and last order"
+
+      - name: delivered_orders
+        description: "Number of successfully delivered orders"
+
+      - name: cancelled_orders
+        description: "Number of cancelled orders"
+
+      - name: fulfillment_rate_pct
+        description: "Percentage of orders successfully fulfilled"
+
+      - name: orders_with_issues
+        description: "Orders with data quality issues"
+
+      - name: last_updated_at
+        description: "Timestamp when record was last updated"
+        tests:
+          - not_null
+
+      - name: customer_segment
+        description: "Customer value segment"
+        tests:
+          - accepted_values:
+              values: ['high_value', 'medium_value', 'low_value', 'minimal']
+
+      - name: days_since_last_order
+        description: "Days since customer's last order"
+
+      - name: engagement_level
+        description: "Customer engagement classification"
+        tests:
+          - accepted_values:
+              values: ['highly_engaged', 'moderately_engaged', 'occasionally_engaged', 'new_customer']

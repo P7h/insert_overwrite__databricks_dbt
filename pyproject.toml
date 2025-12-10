@@ -1,0 +1,24 @@
+[project]
+name = "insert_overwrite__databricks_dbt"
+version = "1.0.0"
+description = "Databricks Asset Bundles project demonstrating insert_overwrite strategy with partitioned and liquid clustered tables"
+requires-python = ">=3.10"
+dependencies = [
+    "databricks-bundles>=0.279.0",
+    "databricks-sdk>=0.73.0",
+    "pydantic>=2.0.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["resources"]
+
+[dependency-groups]
+dev = [
+    # Note: dbt-databricks has incompatible databricks-sdk version requirements
+    # Since dbt runs on Databricks (not locally), we don't need it here
+    # If you need local dbt development, install separately in a different virtualenv
+]

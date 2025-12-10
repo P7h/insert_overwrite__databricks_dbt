@@ -1,0 +1,67 @@
+name: 'insert_overwrite_demo'
+version: '1.0.0'
+config-version: 2
+
+# Profile configuration
+profile: 'databricks_insert_overwrite'
+
+# Project paths
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Model configurations
+models:
+  insert_overwrite_demo:
+    +materialized: table
+    +file_format: delta
+    # Disable contract enforcement to skip slow information_schema queries
+    +contract:
+      enforced: false
+
+    # Staging models - base transformations
+    staging:
+      +materialized: view
+
+    # Marts models - final analytics-ready tables
+    marts:
+      +materialized: incremental
+      +on_schema_change: "fail"
+
+      # Partitioned models use insert_overwrite
+      partitioned:
+        +incremental_strategy: insert_overwrite
+        +partition_by: "order_date"
+
+      # Liquid clustered models use insert_overwrite
+      liquid_clustered:
+        +incremental_strategy: insert_overwrite
+
+# Seeds configuration
+seeds:
+  insert_overwrite_demo:
+    +quote_columns: false
+
+# Tests configuration
+tests:
+  insert_overwrite_demo:
+    +store_failures: true
+
+# Documentation
+vars:
+  # These will be overridden by job parameters in Databricks
+  catalog: "main"
+  schema: "your_schema"
+
+  # insert_overwrite date parameters (optional)
+  # Use these to selectively overwrite specific date partitions
+  # overwrite_dates: "2025-10-01,2025-10-05,2025-10-15"  # Comma-separated specific dates (RECOMMENDED)
+  # overwrite_days: 7                                     # Or: number of days from today

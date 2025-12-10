@@ -1,0 +1,59 @@
+# Databricks Asset Bundle Configuration
+# This file defines the deployment configuration for the insert_overwrite dbt project
+
+bundle:
+  name: insert_overwrite__databricks_dbt
+
+# YAML-defined DABs (ACTIVE - Production Ready!)
+# Resources are defined in YAML files (resources/*.yml)
+include:
+  - resources/*.yml
+
+# Variables that can be overridden per environment
+variables:
+  catalog:
+    description: "Unity Catalog name"
+    default: "main"
+
+  schema:
+    description: "Schema name"
+    default: "your_schema"
+
+  warehouse_id:
+    description: "SQL Warehouse ID for dbt execution (SQL tasks only)"
+    default: "abc123def4567890"
+
+  environment_version:
+    description: "Serverless environment version for Python notebook tasks"
+    default: "4"
+
+# Workspace configuration
+workspace:
+  host: "https://your-workspace.cloud.databricks.com"
+  root_path: "/Workspace/Users/user.name@company.com/insert_overwrite__databricks_dbt/${bundle.environment}"
+
+# Sync configuration - specify what to upload to workspace
+sync:
+  include:
+    - "notebooks/**"
+    - "dbt_project/**"
+  exclude:
+    - ".gitignore"
+    - ".env*"
+    - ".pre-commit-config.yaml"
+    - "*.md"
+    - "pyproject.toml"
+    - "dabs_steps.txt"
+    - "resources/**"
+    - "__pycache__/**"
+    - "*.pyc"
+    - ".DS_Store"
+    - "**/.DS_Store"
+
+# Development environment (default)
+environments:
+  dev:
+    default: true
+    mode: development
+    # Variables inherited from global defaults above
+    # Override here only if you need different values for dev environment

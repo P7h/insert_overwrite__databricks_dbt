@@ -1,0 +1,37 @@
+# SQLFluff configuration for dbt SQL linting
+
+[sqlfluff]
+dialect = databricks
+templater = dbt
+exclude_rules = L016
+max_line_length = 100
+
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 4
+indented_joins = False
+indented_ctes = False
+indented_using_on = True
+
+[sqlfluff:layout:type:comma]
+spacing_before = touch
+line_position = trailing
+
+[sqlfluff:rules]
+capitalisation_policy = lower
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:L010]
+capitalisation_policy = lower
+
+[sqlfluff:rules:L014]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:L030]
+capitalisation_policy = lower
+
+[sqlfluff:templater:dbt]
+project_dir = ./
+profiles_dir = ./
+profile = databricks_insert_overwrite
+target = dev

@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Staging view for orders with basic transformations"
+    columns:
+      - name: order_id
+        description: "Unique order identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+      - name: order_date
+        description: "Order date (normalized to date type)"
+        tests:
+          - not_null
+      - name: product_id
+        description: "Product identifier"
+      - name: quantity
+        description: "Order quantity"
+        tests:
+          - not_null
+      - name: unit_price
+        description: "Unit price"
+        tests:
+          - not_null
+      - name: total_amount
+        description: "Total order amount"
+        tests:
+          - not_null
+      - name: status
+        description: "Order status"
+      - name: created_at
+        description: "Record creation timestamp"
+      - name: order_year
+        description: "Year extracted from order_date"
+      - name: order_month
+        description: "Month extracted from order_date"
+      - name: order_day_of_week
+        description: "Day of week (1=Sunday, 7=Saturday)"
+      - name: has_data_quality_issue
+        description: "Flag for records with data quality issues"
+      - name: processed_at
+        description: "Timestamp when record was processed"
