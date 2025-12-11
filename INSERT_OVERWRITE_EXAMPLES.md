@@ -26,11 +26,21 @@ This project demonstrates **Dynamic Partition Overwrites** using dbt's `insert_o
 - **Does NOT** use `spark.sql.sources.partitionOverwriteMode=dynamic` (Spark config not supported in Databricks SQL)
 - Implements [Databricks Dynamic Partition Overwrites](https://docs.databricks.com/aws/en/delta/selective-overwrite#dynamic-partition-overwrites-with-replace-using) at SQL level
 
+### CRITICAL: --full-refresh with insert_overwrite
+
+**`--full-refresh` does NOT mean "replace all data" with insert_overwrite!**
+
+- ✅ `--full-refresh` just tells dbt to skip incremental checks (bypasses slow information_schema queries)
+- ✅ `insert_overwrite` strategy remains **data-driven** and **selective**
+- ✅ Only partitions with data in the result get overwritten
+- ✅ **This is the recommended approach** - faster and more reliable!
+
 ### Key Concept: Automatic Detection (The True Power!)
 - ✅ Process **ALL source data** and aggregate by partition key (e.g., `order_date`)
 - ✅ `insert_overwrite` **automatically detects** which `order_date` partitions/values exist in the result
 - ✅ Overwrites **ONLY those partitions** - no filters, no dates, completely data-driven!
 - ✅ This is the true USP of dynamic partition overwrites - let the data determine what gets overwritten
+- ✅ Using `--full-refresh` makes this faster by skipping unnecessary metadata checks
 
 ### Partitioned Tables (`orders_mart_partitioned`)
 - **Partition-level overwrites**: Replaces entire `order_date` partitions
@@ -65,12 +75,9 @@ databricks bundle run dbt_workflow --target dev
 ```bash
 # Generate 50,000 orders instead of default 20,000
 databricks bundle run dbt_workflow --target dev --params num_orders=50000
-
-# Add 100 late-arriving orders per date instead of default 50
-databricks bundle run dbt_workflow --target dev --params num_orders_per_date=100
 ```
 
-**Use case:** Test with larger data volumes or more late-arriving orders.
+**Use case:** Test with larger data volumes. Late-arriving order counts are automatically randomized (20-100 per date) to simulate realistic scenarios.
 
 ### Example 3: Run Only Partitioned Model
 
@@ -175,19 +182,21 @@ Source data: Oct 1, 2025 - Nov 27, 2025 (58 days, ~20,000 orders)
 ```bash
 databricks bundle run dbt_workflow --target dev
 # What happens:
-# 1. Setup: Creates source tables with 20K orders (spanning ~90 days)
-# 2. Initial dbt build: Creates mart tables with full load
+# 1. Setup: Creates source tables with 20K orders (spanning ~32-61 days)
+# 2. Initial dbt build with --full-refresh: Creates mart tables with full load
 # 3. Simulate: Adds 50 late-arriving orders to 3 auto-calculated dates
-# 4. dbt refresh: Processes ALL source data
-#    - insert_overwrite automatically detects which dates have data
-#    - ONLY overwrites the 3 affected partitions (not all 90+ days!)
+# 4. dbt build --full-refresh: Processes ALL source data (fast, no information_schema queries!)
+#    - --full-refresh flag bypasses incremental checks
+#    - insert_overwrite strategy STILL only overwrites partitions with data in result
+#    - ONLY overwrites the 3 affected partitions (not all 32-61 days!)
 # 5. Verify: Confirms only target dates were refreshed
 #
 # Result:
 #   - Partitioned: ONLY 3 partitions overwritten (auto-detected dates)
 #   - Liquid: Customer aggregations recalculated for those 3 dates only
-#   - All other dates (87+ partitions): UNCHANGED
+#   - All other dates (29-58 partitions): UNCHANGED
 #   - Perfect demonstration of data-driven partition detection!
+#   - Fast execution (no slow information_schema queries!)
 ```
 
 ## Complete Demo Workflow: Late-Arriving Data
@@ -205,9 +214,9 @@ databricks bundle run dbt_workflow --target dev
 This consolidated workflow automatically runs all 5 steps:
 
 1. **Setup (02a)**: Creates source tables and generates 20,000 sample orders
-2. **Initial dbt build**: Creates mart tables with full load
-3. **Simulate late arrivals (02b)**: Adds 50 new orders to specific dates (demonstrates out-of-sync scenario)
-4. **Dynamic refresh**: dbt automatically detects and refreshes ONLY affected partitions
+2. **Initial dbt build with --full-refresh**: Creates mart tables with full load (all partitions)
+3. **Simulate late arrivals (02b)**: Appends random new orders (20-100 per date) to randomly selected dates (demonstrates out-of-sync scenario)
+4. **dbt build with --full-refresh**: Bypasses information_schema queries, but insert_overwrite STILL only updates affected partitions!
 5. **Verify sync (02c)**: Confirms synchronization and validates the demo
 
 **Benefits:**
@@ -220,9 +229,9 @@ This consolidated workflow automatically runs all 5 steps:
 ```bash
 # Customize parameters (optional)
 databricks bundle run dbt_workflow --target dev \
-  --params num_orders=50000 \
-  --params num_orders_per_date=100
+  --params num_orders=50000
 ```
+Note: Late-arriving order counts are automatically randomized (20-100 per date) for realistic scenarios.
 
 ### Option 2: Run Individual Notebooks (For Development/Testing)
 
@@ -233,16 +242,16 @@ If you need to run steps individually (e.g., for debugging or development), you 
 - Creates source tables and generates data
 
 **Step 2: Initial dbt Build**
-- Run dbt locally or via workspace
+- Run dbt locally or via workspace with `--full-refresh`
 - Creates mart tables with full load
 
 **Step 3: Simulate Late-Arriving Data**
 - Run notebook: `02b_simulate_late_arrivals.ipynb`
-- Adds new orders to specific dates
+- Adds new orders to randomly selected dates
 
-**Step 4: Dynamic Refresh**
-- Run dbt again
-- Automatically detects and refreshes affected partitions
+**Step 4: Refresh with insert_overwrite**
+- Run dbt again with `--full-refresh` (bypasses slow information_schema queries)
+- insert_overwrite strategy automatically detects and overwrites ONLY affected partitions
 
 **Step 5: Verify Synchronization**
 - Run notebook: `02c_verify_sync.ipynb`
@@ -284,7 +293,7 @@ Expected result: Counts should match, and `last_updated_at` should be recent for
 ### Why This Matters
 
 **Without insert_overwrite:**
-- ❌ Would need to reprocess ALL 90+ days of data
+- ❌ Would need to reprocess ALL 32-61 days of data
 - ❌ Expensive and time-consuming
 - ❌ Overwrites data that didn't change
 

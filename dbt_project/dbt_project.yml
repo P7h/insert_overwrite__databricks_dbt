@@ -55,13 +55,10 @@ tests:
   insert_overwrite_demo:
     +store_failures: true
 
-# Documentation
+# Variables
 vars:
-  # These will be overridden by job parameters in Databricks
-  catalog: "main"
-  schema: "your_schema"
-
-  # insert_overwrite date parameters (optional)
-  # Use these to selectively overwrite specific date partitions
-  # overwrite_dates: "2025-10-01,2025-10-05,2025-10-15"  # Comma-separated specific dates (RECOMMENDED)
-  # overwrite_days: 7                                     # Or: number of days from today
+  # ⚠️ IMPORTANT: Update these values for your environment!
+  # These will be overridden by job parameters in Databricks jobs,
+  # but are used for local dbt development and testing
+  catalog: "main"           # Replace with your Unity Catalog name
+  schema: "your_schema"     # Replace with your schema name

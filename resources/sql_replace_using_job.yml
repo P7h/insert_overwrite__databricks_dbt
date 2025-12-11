@@ -29,12 +29,18 @@ resources:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
           environment_key: serverless_env
+          timeout_seconds: 600
 
       # Timeout and retry settings
-      timeout_seconds: 1800
+      timeout_seconds: 600
       max_concurrent_runs: 1
 
       tags:
         project: "insert_overwrite__databricks_dbt"
         environment: "${bundle.environment}"
         job_type: "demo"
+
+      # Permissions
+      permissions:
+        - group_name: "users"
+          level: "CAN_MANAGE_RUN"

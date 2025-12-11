@@ -80,7 +80,7 @@ This project demonstrates the **`insert_overwrite incremental strategy`** in dbt
 │  │  orders_partitioned (PARTITIONED BY order_date)     │  │
 │  │  orders_liquid (CLUSTER BY order_date)              │  │
 │  │  - 20,000 sample orders (identical data)            │  │
-│  │  - 90 days of historical data                       │  │
+│  │  - ~32-61 days of historical data                 │  │
 │  │  - Multiple customers, products, statuses           │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -195,6 +195,18 @@ schema:
   - Find this in Databricks: Within your catalog, select or create a schema
   - Example: `analytics`, `dev_analytics`, `prod_data`, etc.
 
+#### 4. dbt Project Variables (dbt_project/dbt_project.yml)
+
+If you plan to run dbt **locally** (not via Databricks jobs), also update the `vars` section in `dbt_project/dbt_project.yml`:
+
+```yaml
+vars:
+  catalog: "main"           # Replace with your Unity Catalog name # ← UPDATE THIS
+  schema: "your_schema"     # Replace with your schema name # ← UPDATE THIS
+```
+
+**Note:** When running via Databricks jobs, these values are automatically overridden by job parameters, so this is only needed for local development.
+
 ---
 
 **⚠️ Without these changes, deployment will fail or use incorrect resources!**
@@ -278,15 +290,19 @@ This consolidated workflow will:
 
 1. **Setup (02a)**: Create source tables and generate 20,000 sample orders
 2. **Initial dbt build**: Run all dbt models with insert_overwrite (first time = full load)
-3. **Simulate late arrivals (02b)**: Add 50 new orders to automatically calculated dates
-   - Notebook auto-detects data range and selects 3 dates (20%, 50%, 80% through the range)
+3. **Simulate late arrivals (02b)**: Append random new orders (20-100 per date) to randomly selected dates
+   - Notebook auto-detects data range and randomly selects 3 dates (excluding last 2 days)
+   - Each date gets a random number of late-arriving orders to simulate realistic scenarios
    - Works in any month/year without hardcoded dates!
    - Shows BEFORE/AFTER counts in source tables
    - Demonstrates that mart tables are now OUT OF SYNC
-4. **Dynamic refresh with insert_overwrite**: dbt automatically detects and refreshes ONLY the affected dates!
+4. **dbt build with --full-refresh + insert_overwrite**: dbt automatically detects and refreshes ONLY the affected dates!
+   - ✅ Uses `--full-refresh` flag to bypass slow information_schema queries
+   - ✅ **IMPORTANT**: insert_overwrite strategy is STILL data-driven and selective!
    - ✅ Processes ALL source data and aggregates by order_date
    - ✅ insert_overwrite automatically detects which partitions exist in the result
-   - ✅ Overwrites ONLY those 3 partitions (not all 90+ days!)
+   - ✅ Overwrites ONLY those 3 partitions (not all 32-61 days!)
+   - ✅ `--full-refresh` does NOT mean "replace all data" with insert_overwrite - it just skips incremental checks
    - ✅ No filters, no explicit dates - completely data-driven!
    - ✅ Mart tables back in sync with minimal processing
 5. **Verify synchronization (02c)**: Confirms:
@@ -484,6 +500,8 @@ variables:
 
 ### Run dbt Models Locally
 
+**Note:** Before running locally, update the `vars` section in `dbt_project/dbt_project.yml` with your catalog and schema names.
+
 ```bash
 cd dbt_project
 
@@ -559,7 +577,7 @@ The sample dataset includes:
 - **20,000 orders** (configurable via notebook parameters)
 - **~500 unique customers**
 - **~100 unique products**
-- **~90 days** of historical data (dynamically generated from first day of previous month to today)
+- **~32-61 days** of historical data (dynamically generated from first day of previous month to today)
 - **5 order statuses**: delivered (60%), shipped (15%), confirmed (12%), pending (8%), cancelled (5%)
 - **Identical data** in both source tables (orders_partitioned and orders_liquid)
-- **Auto-calculated demo dates**: Simulate notebook selects 3 dates at 20%, 50%, 80% through the data range
+- **Auto-calculated demo dates**: Simulate notebook randomly selects 3 dates from the data range (excluding last 2 days)

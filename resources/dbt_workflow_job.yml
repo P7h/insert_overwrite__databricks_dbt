@@ -1,9 +1,11 @@
 # Consolidated dbt workflow job
 # This job orchestrates the complete dbt insert_overwrite demo workflow:
 #   1. Setup and generate data (02a)
-#   2. Initial dbt run
+#   2. Initial dbt build with --full-refresh (creates all partitions)
 #   3. Simulate late-arriving data (02b)
-#   4. dbt run to refresh affected partitions
+#   4. dbt build with --full-refresh (insert_overwrite STILL only updates affected partitions!)
+#      Note: --full-refresh bypasses slow information_schema queries, but insert_overwrite
+#            strategy is data-driven and only overwrites partitions that have data in the result
 #   5. Verify synchronization (02c)
 
 resources:
@@ -15,8 +17,6 @@ resources:
       parameters:
         - name: num_orders
           default: "20000"
-        - name: num_orders_per_date
-          default: "50"
 
       # Define environments for different task types
       environments:
@@ -40,6 +40,7 @@ resources:
               schema: "${var.schema}"
               num_orders: "{{job.parameters.num_orders}}"
           environment_key: serverless_env
+          timeout_seconds: 300
 
         # Task 2: Initial dbt build (creates mart tables)
         # Note: Uses --full-refresh to load all historical data on first run
@@ -55,9 +56,11 @@ resources:
             warehouse_id: "${var.warehouse_id}"
             catalog: "${var.catalog}"
             schema: "${var.schema}"
+          timeout_seconds: 900
 
         # Task 3: Simulate late-arriving data (02b)
-        # Note: target_dates automatically calculated by notebook based on actual data range
+        # Note: Notebook randomly selects 3 dates from actual data range
+        # Random order counts (20-100) appended per date to simulate realistic scenarios
         - task_key: simulate_late_arrivals
           depends_on:
             - task_key: dbt_initial_build
@@ -67,13 +70,14 @@ resources:
             base_parameters:
               catalog: "${var.catalog}"
               schema: "${var.schema}"
-              num_orders_per_date: "{{job.parameters.num_orders_per_date}}"
           environment_key: serverless_env
+          timeout_seconds: 300
 
-        # Task 4: dbt run to refresh affected partitions
-        # Using --full-refresh to bypass incremental logic and process all data
-        # This ensures clean state and avoids any metadata scanning issues
-        # insert_overwrite still only overwrites partitions that have data in the result
+        # Task 4: dbt build to refresh affected partitions
+        # Uses --full-refresh to bypass slow information_schema queries
+        # insert_overwrite STILL only updates partitions with changed data (data-driven!)
+        # The --full-refresh flag just tells dbt to skip incremental checks, not to replace all data
+        # Runs models and tests to ensure data quality after refresh
         - task_key: dbt_refresh_partitions
           depends_on:
             - task_key: simulate_late_arrivals
@@ -85,6 +89,7 @@ resources:
             warehouse_id: "${var.warehouse_id}"
             catalog: "${var.catalog}"
             schema: "${var.schema}"
+          timeout_seconds: 900
 
         # Task 5: Verify synchronization (02c)
         # Note: Notebook auto-detects recently updated dates (no parameters needed)
@@ -98,12 +103,18 @@ resources:
               catalog: "${var.catalog}"
               schema: "${var.schema}"
           environment_key: serverless_env
+          timeout_seconds: 300
 
       # Timeout and retry settings
-      timeout_seconds: 7200
+      timeout_seconds: 2700
       max_concurrent_runs: 1
 
       tags:
         project: "insert_overwrite__databricks_dbt"
         environment: "${bundle.environment}"
         job_type: "workflow"
+
+      # Permissions
+      permissions:
+        - group_name: "users"
+          level: "CAN_MANAGE_RUN"
